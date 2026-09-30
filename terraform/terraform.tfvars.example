@@ -1,0 +1,11 @@
+aws_region              = "ap-south-1"
+project_name            = "devsecops-gitops-mega-project"
+environment             = "production"
+vpc_cidr                = "10.0.0.0/16"
+jenkins_instance_type   = "t3.large"
+jenkins_admin_ip        = "203.0.113.5/32" # Replace with your admin IP address
+eks_cluster_name        = "devsecops-eks-cluster"
+eks_node_instance_types = ["t3.medium"]
+eks_desired_capacity    = 2
+eks_min_capacity        = 1
+eks_max_capacity        = 4

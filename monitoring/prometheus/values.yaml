@@ -1,0 +1,33 @@
+# Prometheus & Grafana Helm values override for kube-prometheus-stack
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+
+grafana:
+  enabled: true
+  adminPassword: "admin-secure-password-change-me"
+  persistence:
+    enabled: true
+    size: 5Gi
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'email-notifications'
+
+    receivers:
+      - name: 'email-notifications'
+        email_configs:
+          - to: 'devops-alerts@example.com'
+            from: 'prometheus@devsecops.local'
+            smarthost: 'smtp.gmail.com:587'
+            auth_username: 'devops-alerts@example.com'
+            auth_password: 'smtp-app-password'

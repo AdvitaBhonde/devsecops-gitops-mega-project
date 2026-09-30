@@ -1,0 +1,161 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_USER = 'advitabhonde'
+        BACKEND_IMAGE = "${DOCKERHUB_USER}/devsecops-backend"
+        FRONTEND_IMAGE = "${DOCKERHUB_USER}/devsecops-frontend"
+        SONAR_HOST_URL = 'http://localhost:9000'
+        NOTIFICATION_EMAIL = 'devops-alerts@example.com'
+    }
+
+    stages {
+        stage('Checkout Source Code') {
+            steps {
+                script {
+                    env.BUILD_HASH = sh(script: 'git rev-parse --short HEAD || echo "local"', returnStdout: true).trim()
+                    env.IMAGE_TAG = "${BUILD_NUMBER}-${env.BUILD_HASH}"
+                    echo "Starting DevSecOps CI Pipeline for Build #${BUILD_NUMBER} (Tag: ${env.IMAGE_TAG})"
+                }
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing Backend dependencies...'
+                dir('application/backend') {
+                    sh 'npm ci || npm install'
+                }
+                echo 'Installing Frontend dependencies...'
+                dir('application/frontend') {
+                    sh 'npm ci || npm install'
+                }
+            }
+        }
+
+        stage('Run Unit & Component Tests') {
+            steps {
+                echo 'Executing Backend unit tests...'
+                dir('application/backend') {
+                    sh 'npm test -- --passWithNoTests'
+                }
+                echo 'Executing Frontend unit tests...'
+                dir('application/frontend') {
+                    sh 'CI=true npm test -- --passWithNoTests'
+                }
+            }
+        }
+
+        stage('OWASP Dependency Check') {
+            steps {
+                echo 'Running OWASP Dependency-Check scanner...'
+                sh '''
+                    dependency-check --project "DevSecOps-Task-Manager" \
+                                     --scan "application/" \
+                                     --out "dependency-check-report" \
+                                     --format "ALL" \
+                                     --suppression "security/dependency-check/suppressions.xml" || true
+                '''
+                dependencyCheckPublisher pattern: 'dependency-check-report/*.xml'
+            }
+        }
+
+        stage('SonarQube Static Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                    echo 'Running SonarQube Scanner...'
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.login=${SONAR_TOKEN} \
+                          -Dsonar.projectKey=devsecops-gitops-mega-project \
+                          -Dsonar.projectName="DevOps Task Manager" \
+                          -Dsonar.sources=application/backend/src,application/frontend/src \
+                          -Dsonar.exclusions=**/node_modules/**,**/build/** || true
+                    '''
+                }
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    script {
+                        waitForQualityGate abortPipeline: false
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Filesystem Vulnerability Scan') {
+            steps {
+                echo 'Scanning workspace filesystem for HIGH & CRITICAL vulnerabilities...'
+                sh '''
+                    trivy fs --severity HIGH,CRITICAL \
+                             --exit-code 0 \
+                             --format table \
+                             --output trivy-fs-report.txt . || true
+                '''
+                archiveArtifacts artifacts: 'trivy-fs-report.txt', allowEmptyArchive: true
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                echo "Building Backend Docker Image: ${BACKEND_IMAGE}:${env.IMAGE_TAG}"
+                dir('application/backend') {
+                    sh "docker build -t ${BACKEND_IMAGE}:${env.IMAGE_TAG} -t ${BACKEND_IMAGE}:latest ."
+                }
+                echo "Building Frontend Docker Image: ${FRONTEND_IMAGE}:${env.IMAGE_TAG}"
+                dir('application/frontend') {
+                    sh "docker build -t ${FRONTEND_IMAGE}:${env.IMAGE_TAG} -t ${FRONTEND_IMAGE}:latest ."
+                }
+            }
+        }
+
+        stage('Trivy Docker Image Scan') {
+            steps {
+                echo 'Scanning Backend Docker Image...'
+                sh "trivy image --severity HIGH,CRITICAL --exit-code 0 ${BACKEND_IMAGE}:${env.IMAGE_TAG} || true"
+                echo 'Scanning Frontend Docker Image...'
+                sh "trivy image --severity HIGH,CRITICAL --exit-code 0 ${FRONTEND_IMAGE}:${env.IMAGE_TAG} || true"
+            }
+        }
+
+        stage('Push Docker Images to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKERHUB_PASS', usernameVariable: 'DOCKERHUB_USER')]) {
+                    sh 'echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin'
+                    sh "docker push ${BACKEND_IMAGE}:${env.IMAGE_TAG}"
+                    sh "docker push ${BACKEND_IMAGE}:latest"
+                    sh "docker push ${FRONTEND_IMAGE}:${env.IMAGE_TAG}"
+                    sh "docker push ${FRONTEND_IMAGE}:latest"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout || true'
+            cleanWs()
+        }
+        success {
+            echo "CI Pipeline succeeded for Build #${BUILD_NUMBER}!"
+            emailext (
+                subject: "SUCCESS: DevSecOps CI Build #${BUILD_NUMBER}",
+                body: "Build #${BUILD_NUMBER} for ${env.JOB_NAME} succeeded.\nArtifacts tagged: ${env.IMAGE_TAG}",
+                to: "${NOTIFICATION_EMAIL}"
+            )
+        }
+        failure {
+            echo "CI Pipeline failed for Build #${BUILD_NUMBER}!"
+            emailext (
+                subject: "FAILURE: DevSecOps CI Build #${BUILD_NUMBER}",
+                body: "Build #${BUILD_NUMBER} failed during CI execution. Please inspect Jenkins logs.",
+                to: "${NOTIFICATION_EMAIL}"
+            )
+        }
+    }
+}

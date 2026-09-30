@@ -1,0 +1,38 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "EKS Cluster Node Memory & CPU Usage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) by (instance) / 1024 / 1024 / 1024",
+          "legendFormat": "Memory Used (GB) - {{instance}}"
+        }
+      ]
+    },
+    {
+      "title": "Pod Restarts Count",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"devsecops\"}[1h]))",
+          "legendFormat": "Restarts (1h)"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["kubernetes", "devsecops", "eks"],
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "DevSecOps EKS Production Dashboard",
+  "version": 1
+}

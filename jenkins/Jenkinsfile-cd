@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+
+    environment {
+        GITHUB_USER = 'AdvitaBhonde'
+        REPO_NAME = 'devsecops-gitops-mega-project'
+        DOCKERHUB_USER = 'advitabhonde'
+        NOTIFICATION_EMAIL = 'devops-alerts@example.com'
+    }
+
+    stages {
+        stage('Checkout Manifests Repository') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Update Kubernetes Image Tags (GitOps Target)') {
+            steps {
+                script {
+                    def newTag = params.IMAGE_TAG ?: "${BUILD_NUMBER}"
+                    echo "Updating Kubernetes Manifests image tags to: ${newTag}"
+
+                    dir('kubernetes') {
+                        sh """
+                            sed -i 's|image: .*devsecops-backend:.*|image: ${DOCKERHUB_USER}/devsecops-backend:${newTag}|g' backend-deployment.yaml
+                            sed -i 's|image: .*devsecops-frontend:.*|image: ${DOCKERHUB_USER}/devsecops-frontend:${newTag}|g' frontend-deployment.yaml
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Git Commit & Push Manifest Changes') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                    sh """
+                        git config user.name "Jenkins CD Bot"
+                        git config user.email "jenkins-bot@devsecops.local"
+                        git add kubernetes/
+                        git diff-index --quiet HEAD || git commit -m "[GitOps Auto-Sync] Update deployment image tags to build #${BUILD_NUMBER}"
+                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GITHUB_USER}/${REPO_NAME}.git HEAD:main
+                    """
+                }
+            }
+        }
+
+        stage('Verify Argo CD Detection Status') {
+            steps {
+                echo 'Manifest change committed to Git! Argo CD will automatically detect changes and reconcile EKS state.'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "GitOps CD deployment triggered successfully!"
+            emailext (
+                subject: "GITOPS DEPLOYMENT SUCCESS: Build #${BUILD_NUMBER}",
+                body: "GitOps repository updated for build #${BUILD_NUMBER}. Argo CD reconciliation in progress.",
+                to: "${NOTIFICATION_EMAIL}"
+            )
+        }
+        failure {
+            echo "GitOps CD deployment failed!"
+            emailext (
+                subject: "GITOPS DEPLOYMENT FAILURE: Build #${BUILD_NUMBER}",
+                body: "CD pipeline failed to update GitOps manifests. Please inspect Jenkins logs.",
+                to: "${NOTIFICATION_EMAIL}"
+            )
+        }
+    }
+}

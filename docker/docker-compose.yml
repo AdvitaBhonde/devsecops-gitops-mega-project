@@ -1,0 +1,54 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: devsecops-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: devsecops-db
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../application/backend
+      dockerfile: Dockerfile
+    container_name: devsecops-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/devsecops-db
+      NODE_ENV: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ../application/frontend
+      dockerfile: Dockerfile
+    container_name: devsecops-frontend
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
+    driver: local

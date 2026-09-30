@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: devsecops-project
+  namespace: argocd
+spec:
+  description: Project policy for DevSecOps & GitOps Production Applications
+  sourceRepos:
+    - 'https://github.com/AdvitaBhonde/devsecops-gitops-mega-project.git'
+  destinations:
+    - namespace: devsecops
+      server: 'https://kubernetes.default.svc'
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
