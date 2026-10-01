@@ -1,4 +1,4 @@
-# Production DevSecOps & GitOps Mega Project
+# Production DevSecOps & GitOps Mega Project (Wanderlust Platform)
 
 [![AWS](https://img.shields.io/badge/AWS-EKS%20%7C%20VPC%20%7C%20EC2-orange?logo=amazon-aws)](https://aws.amazon.com/)
 [![Terraform](https://img.shields.io/badge/IaC-Terraform%20v1.5+-purple?logo=terraform)](https://www.terraform.io/)
@@ -7,7 +7,7 @@
 [![Security](https://img.shields.io/badge/DevSecOps-OWASP%20%7C%20SonarQube%20%7C%20Trivy-brightgreen)](https://owasp.org/)
 [![Observability](https://img.shields.io/badge/Monitoring-Prometheus%20%7C%20Grafana-red?logo=grafana)](https://grafana.com/)
 
-A comprehensive, production-grade **DevSecOps + GitOps Mega Project** designed from scratch. Features an interactive **DevOps Task Manager** full-stack application (React.js, Node.js/Express, MongoDB), fully automated AWS EKS infrastructure via Terraform, Jenkins multi-stage security pipelines, pull-based Argo CD GitOps synchronization, and end-to-end Prometheus/Grafana observability.
+A comprehensive, production-grade **DevSecOps + GitOps Mega Project** designed from scratch. Features an interactive **Wanderlust Travel & Vacation Rental Platform** full-stack application (React.js, Node.js/Express, MongoDB), fully automated AWS EKS infrastructure via Terraform, Jenkins multi-stage security pipelines, pull-based Argo CD GitOps synchronization, and end-to-end Prometheus/Grafana observability.
 
 ---
 
@@ -37,7 +37,7 @@ flowchart LR
 
     subgraph AWS_Infrastructure ["☁️ AWS EKS Cluster"]
         ARGO -->|Automated Sync| EKS["AWS EKS Nodes"]
-        EKS --> APP["🚀 DevOps Task Manager"]
+        EKS --> APP["🏖️ Wanderlust Travel App"]
     end
 
     subgraph Observability ["📊 Observability"]
@@ -53,7 +53,7 @@ flowchart LR
 
 | Category | Tools & Technologies |
 | :--- | :--- |
-| **Application** | React.js, Node.js, Express.js, MongoDB |
+| **Application** | **Wanderlust Platform**: React.js SPA, Node.js, Express.js, MongoDB |
 | **Containerization** | Docker, Docker Compose, Nginx |
 | **Infrastructure as Code** | Terraform, AWS Provider |
 | **Cloud Provider** | AWS (VPC, Subnets, NAT Gateway, EC2, EKS, IAM) |
@@ -70,8 +70,8 @@ flowchart LR
 ```
 devsecops-gitops-mega-project/
 ├── application/
-│   ├── frontend/            # React.js SPA Application
-│   └── backend/             # Express.js REST API with /health
+│   ├── frontend/            # React.js Wanderlust SPA Application
+│   └── backend/             # Express.js Wanderlust REST API (/health, /api/listings)
 ├── docker/                  # Local Docker Compose Orchestration
 ├── jenkins/                 # Jenkinsfile, Jenkinsfile-ci, Jenkinsfile-cd
 ├── security/                # OWASP, SonarQube, & Trivy Scan Configs
@@ -93,10 +93,10 @@ devsecops-gitops-mega-project/
 cd docker
 docker compose up -d
 ```
-Access services locally:
-- **Frontend SPA**: `http://localhost`
+Access Wanderlust services locally:
+- **Wanderlust Frontend**: `http://localhost`
 - **Backend Health Check**: `http://localhost:5000/health`
-- **Backend API**: `http://localhost:5000/api/tasks`
+- **Wanderlust REST API**: `http://localhost:5000/api/listings`
 
 ---
 
@@ -114,7 +114,7 @@ terraform apply
 Resources created:
 - **Custom VPC** with Public and Private Subnets across AZs.
 - **NAT Gateway** & Internet Gateway.
-- **EC2 Instance** for Jenkins Master (pre-installed with Java, Docker, Jenkins, kubectl, eksctl, Helm, Terraform, Trivy).
+- **EC2 Instance** for Jenkins Master (pre-installed with Java, Docker, Jenkins, kubectl, eksctl, Helm, Terraform, Trivy, and SonarQube).
 - **AWS EKS Cluster** (v1.30) with Managed Node Groups in private subnets.
 
 ---

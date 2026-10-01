@@ -1,32 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { fetchHealth, fetchTasks, createTask, updateTask, deleteTask } from './services/api';
+import { fetchHealth, fetchTasks, createTask, deleteTask } from './services/api';
 
 function App() {
-  const [tasks, setTasks] = useState([]);
+  const [listings, setListings] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('medium');
-  const [filter, setFilter] = useState('all');
+  const [location, setLocation] = useState('');
+  const [country, setCountry] = useState('India');
+  const [price, setPrice] = useState('');
+  const [category, setCategory] = useState('Beach');
+  const [imageUrl, setImageUrl] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [healthStatus, setHealthStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState({ username: 'AdvitaBhonde', role: 'DevOps Engineer' });
+  const [user] = useState({ username: 'AdvitaBhonde', role: 'Lead DevOps Architect' });
 
-  // Load Health & Tasks
   const loadData = async () => {
     try {
       setLoading(true);
       const healthRes = await fetchHealth();
       setHealthStatus(healthRes);
 
-      const tasksRes = await fetchTasks();
-      if (tasksRes.success) {
-        setTasks(tasksRes.data);
+      const res = await fetchTasks();
+      if (res.success) {
+        setListings(res.data);
       }
       setError(null);
     } catch (err) {
       console.error(err);
-      setError('Could not connect to Backend API. Check if service is running.');
+      setError('Could not connect to Wanderlust Backend API. Ensure backend service is active.');
     } finally {
       setLoading(false);
     }
@@ -40,199 +43,243 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleCreateTask = async (e) => {
+  const handleCreateListing = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !location.trim() || !price) return;
 
     try {
-      const res = await createTask({ title, description, priority });
+      const payload = {
+        title,
+        description,
+        location,
+        country,
+        price: Number(price),
+        category,
+        imageUrl: imageUrl.trim() || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80'
+      };
+
+      const res = await createTask(payload);
       if (res.success) {
-        setTasks([res.data, ...tasks]);
+        setListings([res.data, ...listings]);
         setTitle('');
         setDescription('');
-        setPriority('medium');
+        setLocation('');
+        setPrice('');
+        setImageUrl('');
       }
     } catch (err) {
-      alert('Error creating task: ' + err.message);
+      alert('Error creating Wanderlust listing: ' + err.message);
     }
   };
 
-  const handleToggleComplete = async (task) => {
-    try {
-      const updatedStatus = !task.completed;
-      const res = await updateTask(task._id, { completed: updatedStatus, status: updatedStatus ? 'completed' : 'pending' });
-      if (res.success) {
-        setTasks(tasks.map(t => t._id === task._id ? res.data : t));
-      }
-    } catch (err) {
-      alert('Error updating task: ' + err.message);
-    }
-  };
-
-  const handleDeleteTask = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
+  const handleDeleteListing = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this Wanderlust destination?')) return;
     try {
       const res = await deleteTask(id);
       if (res.success) {
-        setTasks(tasks.filter(t => t._id !== id));
+        setListings(listings.filter(l => l._id !== id));
       }
     } catch (err) {
-      alert('Error deleting task: ' + err.message);
+      alert('Error deleting destination: ' + err.message);
     }
   };
 
-  const filteredTasks = tasks.filter(t => {
-    if (filter === 'completed') return t.completed;
-    if (filter === 'pending') return !t.completed;
-    return true;
+  const filteredListings = listings.filter(item => {
+    if (selectedCategory === 'All') return true;
+    return item.category === selectedCategory;
   });
 
   return (
     <div className="app-container">
-      {/* Header */}
-      <header className="header">
+      {/* Top Navbar */}
+      <header className="navbar">
         <div className="brand">
-          <span className="logo-icon">🚀</span>
+          <span className="brand-logo">🏖️</span>
           <div>
-            <h1>DevOps Task Manager</h1>
-            <p className="subtitle">DevSecOps & GitOps Production Architecture Demo</p>
+            <h1>Wanderlust</h1>
+            <p className="brand-tagline">Explore Unique Stay Destinations & Travel Experiences</p>
           </div>
         </div>
 
-        <div className="header-right">
-          <div className={`status-badge ${healthStatus?.status === 'UP' ? 'online' : 'offline'}`}>
-            <span className="dot"></span>
-            Backend: {healthStatus?.status === 'UP' ? 'UP' : 'DOWN'}
-            {healthStatus?.database?.connected && ' (DB Connected)'}
+        <div className="navbar-actions">
+          <div className={`status-indicator ${healthStatus?.status === 'UP' ? 'healthy' : 'down'}`}>
+            <span className="pulse-dot"></span>
+            Backend: {healthStatus?.status === 'UP' ? 'UP (Online)' : 'DOWN'}
+            {healthStatus?.database?.connected && ' | MongoDB Active'}
           </div>
-          <div className="user-profile">
-            <span className="user-avatar">👤</span>
-            <div className="user-info">
-              <span className="user-name">{user.username}</span>
-              <span className="user-role">{user.role}</span>
+
+          <div className="user-badge">
+            <span className="user-icon">👤</span>
+            <div>
+              <div className="user-name">{user.username}</div>
+              <div className="user-role">{user.role}</div>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Hero Banner */}
+      <section className="hero-banner">
+        <div className="hero-content">
+          <h2>Find Your Next Escape with Wanderlust</h2>
+          <p>Production DevSecOps & GitOps Architecture Demonstration</p>
+        </div>
+      </section>
+
       {/* Main Grid */}
-      <main className="main-content">
-        {/* Left Column: Create Task Form */}
-        <section className="card create-task-card">
-          <h2>➕ Create New Task</h2>
-          <form onSubmit={handleCreateTask}>
-            <div className="form-group">
-              <label>Task Title *</label>
-              <input
-                type="text"
-                placeholder="e.g., Deploy ArgoCD to AWS EKS"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
+      <main className="main-layout">
+        {/* Sidebar: Add Listing Form */}
+        <aside className="sidebar">
+          <div className="card">
+            <h3>📍 Add New Destination</h3>
+            <form onSubmit={handleCreateListing}>
+              <div className="form-field">
+                <label>Listing Title *</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Luxury Oceanfront Villa"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
 
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                rows="3"
-                placeholder="Details, requirements or deployment notes..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+              <div className="form-row">
+                <div className="form-field">
+                  <label>City / Location *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Goa"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Country</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., India"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                  />
+                </div>
+              </div>
 
-            <div className="form-group">
-              <label>Priority</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🔴 High</option>
-              </select>
-            </div>
+              <div className="form-row">
+                <div className="form-field">
+                  <label>Price per Night (₹) *</label>
+                  <input
+                    type="number"
+                    placeholder="4500"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Category</label>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                    <option value="Beach">🏝️ Beach</option>
+                    <option value="Mountains">🏔️ Mountains</option>
+                    <option value="Trending">🔥 Trending</option>
+                    <option value="Cities">🏙️ Cities</option>
+                    <option value="Camping">⛺ Camping</option>
+                    <option value="Luxury">✨ Luxury</option>
+                  </select>
+                </div>
+              </div>
 
-            <button type="submit" className="btn btn-primary">
-              Create DevOps Task
-            </button>
-          </form>
+              <div className="form-field">
+                <label>Image URL</label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                />
+              </div>
 
-          {/* System Info Banner */}
-          <div className="system-banner">
-            <h3>📊 Pipeline & Cluster Spec</h3>
+              <div className="form-field">
+                <label>Description</label>
+                <textarea
+                  rows="3"
+                  placeholder="Scenic details, amenities, and highlights..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary">
+                ➕ Post Destination
+              </button>
+            </form>
+          </div>
+
+          <div className="card tech-card">
+            <h4>⚙️ Infrastructure Telemetry</h4>
             <ul>
-              <li><strong>CI/CD:</strong> Jenkins + ArgoCD</li>
-              <li><strong>Infra:</strong> Terraform AWS EKS</li>
-              <li><strong>Security:</strong> OWASP, SonarQube, Trivy</li>
+              <li><strong>CI/CD:</strong> Jenkins + Docker Hub</li>
+              <li><strong>GitOps:</strong> Argo CD + AWS EKS</li>
+              <li><strong>IaC:</strong> Terraform AWS VPC/EKS</li>
               <li><strong>Observability:</strong> Prometheus & Grafana</li>
             </ul>
           </div>
-        </section>
+        </aside>
 
-        {/* Right Column: Task List & Controls */}
-        <section className="card task-list-card">
-          <div className="list-header">
-            <h2>📋 Task List ({filteredTasks.length})</h2>
-
-            <div className="filter-tabs">
+        {/* Content Area: Listings */}
+        <section className="content-area">
+          <div className="category-bar">
+            {['All', 'Beach', 'Mountains', 'Trending', 'Cities', 'Camping', 'Luxury'].map((cat) => (
               <button
-                className={`tab ${filter === 'all' ? 'active' : ''}`}
-                onClick={() => setFilter('all')}
+                key={cat}
+                className={`cat-pill ${selectedCategory === cat ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat)}
               >
-                All
+                {cat === 'All' ? '🌐 All' : cat}
               </button>
-              <button
-                className={`tab ${filter === 'pending' ? 'active' : ''}`}
-                onClick={() => setFilter('pending')}
-              >
-                Pending
-              </button>
-              <button
-                className={`tab ${filter === 'completed' ? 'active' : ''}`}
-                onClick={() => setFilter('completed')}
-              >
-                Completed
-              </button>
-            </div>
+            ))}
           </div>
 
-          {error && <div className="error-alert">{error}</div>}
+          {error && <div className="error-banner">{error}</div>}
 
           {loading ? (
-            <div className="loading-spinner">Loading tasks...</div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="empty-state">
-              <p>No tasks found. Create one to get started!</p>
+            <div className="loading-box">Loading Wanderlust destinations...</div>
+          ) : filteredListings.length === 0 ? (
+            <div className="empty-box">
+              <p>No destinations found in this category. Be the first to add one!</p>
             </div>
           ) : (
-            <div className="tasks-grid">
-              {filteredTasks.map((t) => (
-                <div key={t._id} className={`task-item ${t.completed ? 'completed' : ''}`}>
-                  <div className="task-header">
-                    <span className={`priority-tag ${t.priority}`}>
-                      {t.priority.toUpperCase()}
-                    </span>
+            <div className="listings-grid">
+              {filteredListings.map((item) => (
+                <div key={item._id || item.id} className="listing-card">
+                  <div className="card-image-wrapper">
+                    <img
+                      src={item.imageUrl || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80'}
+                      alt={item.title}
+                      className="card-image"
+                    />
+                    <span className="category-badge">{item.category || 'Trending'}</span>
                     <button
-                      className="btn-icon delete-btn"
-                      title="Delete Task"
-                      onClick={() => handleDeleteTask(t._id)}
+                      className="delete-icon-btn"
+                      title="Remove Destination"
+                      onClick={() => handleDeleteListing(item._id || item.id)}
                     >
                       🗑️
                     </button>
                   </div>
 
-                  <h3 className="task-title">{t.title}</h3>
-                  {t.description && <p className="task-desc">{t.description}</p>}
+                  <div className="card-body">
+                    <h3 className="card-title">{item.title}</h3>
+                    <p className="card-location">📍 {item.location || 'Location'}, {item.country || 'India'}</p>
+                    {item.description && <p className="card-desc">{item.description}</p>}
 
-                  <div className="task-footer">
-                    <span className="task-date">
-                      {new Date(t.createdAt).toLocaleDateString()}
-                    </span>
-                    <button
-                      className={`btn btn-sm ${t.completed ? 'btn-success' : 'btn-outline'}`}
-                      onClick={() => handleToggleComplete(t)}
-                    >
-                      {t.completed ? '✓ Completed' : 'Mark Done'}
-                    </button>
+                    <div className="card-footer">
+                      <span className="price-tag">
+                        <strong>₹{item.price ? item.price.toLocaleString() : '3,500'}</strong> <small>/ night</small>
+                      </span>
+                      <button className="btn btn-sm btn-accent">Book Stay</button>
+                    </div>
                   </div>
                 </div>
               ))}
